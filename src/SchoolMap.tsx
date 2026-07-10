@@ -126,19 +126,33 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const [scope, setScope] = useState<'state' | 'municipality'>('state')
   const [criticalFilter, setCriticalFilter] = useState<CriticalFilter>('all')
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all')
+  const [greFilter, setGreFilter] = useState('all')
   const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
   const mapNode = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
   const municipalityLayerRef = useRef<L.GeoJSON | null>(null)
 
-  const scopedSchools = useMemo(() => {
+  const geographySchools = useMemo(() => {
     const schoolsInsidePe = validIneps ? mappedSchools.filter((school) => validIneps.has(school.inep)) : mappedSchools
     if (scope === 'municipality' && selectedMunicipality) {
       return schoolsInsidePe.filter((school) => school.municipality === selectedMunicipality)
     }
     return schoolsInsidePe
   }, [scope, selectedMunicipality, validIneps])
+
+  const greOptions = useMemo(() => {
+    return [...new Set(geographySchools.map((school) => school.gre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  }, [geographySchools])
+
+  const scopedSchools = useMemo(() => {
+    if (greFilter === 'all') return geographySchools
+    return geographySchools.filter((school) => school.gre === greFilter)
+  }, [geographySchools, greFilter])
+
+  useEffect(() => {
+    if (greFilter !== 'all' && !greOptions.includes(greFilter)) setGreFilter('all')
+  }, [greFilter, greOptions])
 
   const visibleSchools = useMemo(() => {
     return scopedSchools.filter((school) => {
@@ -307,6 +321,18 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       </div>
 
       <div className="mapFilters" aria-label="Filtros do mapa">
+        <fieldset className="greFilter">
+          <legend>GRE</legend>
+          <select value={greFilter} onChange={(event) => setGreFilter(event.target.value)} aria-label="Filtrar por GRE">
+            <option value="all">Todas as GREs</option>
+            {greOptions.map((gre) => (
+              <option key={gre} value={gre}>
+                {gre}
+              </option>
+            ))}
+          </select>
+        </fieldset>
+
         <fieldset>
           <legend>Criticidade</legend>
           <div>

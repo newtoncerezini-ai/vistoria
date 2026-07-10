@@ -491,6 +491,10 @@ textarea:focus {
   padding: 12px;
 }
 
+.mapFilters .greFilter {
+  grid-column: 1 / -1;
+}
+
 .mapFilters legend {
   color: #20344f;
   font-size: 12px;
@@ -503,6 +507,13 @@ textarea:focus {
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mapFilters select {
+  background-color: var(--surface);
+  font-size: 14px;
+  font-weight: 800;
+  min-height: 40px;
 }
 
 .mapFilters button {
