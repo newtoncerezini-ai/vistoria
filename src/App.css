@@ -20,6 +20,57 @@ main {
   color: var(--text);
 }
 
+.mapOnlyApp {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 24px;
+}
+
+.mapOnlyHeader {
+  align-items: flex-start;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 20px clamp(16px, 4vw, 40px);
+}
+
+.mapOnlyHeader p {
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.mapOnlySummary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-inline: auto;
+  max-width: 1440px;
+  width: min(100% - 32px, 1440px);
+}
+
+.mapOnlySummary > div {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #35506f;
+  display: flex;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 10px;
+  min-height: 68px;
+  padding: 14px;
+}
+
+.mapOnlySummary strong {
+  color: var(--text);
+  display: block;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
 .topbar {
   align-items: flex-start;
   background: var(--surface);
@@ -87,11 +138,17 @@ h2 {
 .offlinePanel,
 .reportPanel,
 .identityPanel,
+.mapPanel,
 .checklistPanel,
 footer {
   margin-inline: auto;
   max-width: 1120px;
   width: min(100% - 32px, 1120px);
+}
+
+.mapOnlyApp .mapPanel {
+  max-width: 1440px;
+  width: min(100% - 32px, 1440px);
 }
 
 .summaryBand {
@@ -367,6 +424,300 @@ textarea:focus {
   line-height: 1.35;
 }
 
+.mapPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.mapHeader {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.mapHeader p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 6px 0 0;
+}
+
+.mapScopeControl {
+  background: #eef6ff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 4px;
+}
+
+.mapScopeControl button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #35506f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.mapScopeControl .active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.mapFilters {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 18px 18px;
+}
+
+.mapFilters fieldset {
+  background: #f7fbff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0;
+  min-width: 0;
+  padding: 12px;
+}
+
+.mapFilters legend {
+  color: #20344f;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 4px;
+  text-transform: uppercase;
+}
+
+.mapFilters fieldset > div {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mapFilters button {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: #20344f;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.mapFilters button span {
+  background: #eaf3ff;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  font-size: 11px;
+  min-width: 28px;
+  padding: 2px 6px;
+}
+
+.mapFilters button.active {
+  background: var(--primary);
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 2px rgba(7, 87, 168, 0.14);
+  color: #ffffff;
+}
+
+.mapFilters button.active span {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.mapStats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 18px 18px;
+}
+
+.mapStats span {
+  background: #f7fbff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #35506f;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
+.mapStats strong {
+  color: var(--text);
+  display: block;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.mapFrame {
+  min-height: 680px;
+  position: relative;
+}
+
+.mapCanvas {
+  background: #dfe6ec;
+  border-top: 1px solid var(--border);
+  height: 680px;
+  width: 100%;
+}
+
+.mapFloatingLegend {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #d8e1ea;
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+  left: 14px;
+  padding: 12px 14px;
+  position: absolute;
+  top: 14px;
+  width: min(260px, calc(100% - 28px));
+  z-index: 700;
+}
+
+.mapFloatingLegend > strong {
+  color: #0f172a;
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+.legendItems {
+  display: grid;
+  gap: 7px;
+}
+
+.legendItems div {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 18px 1fr;
+}
+
+.legendItems p {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.legendDotPoint {
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18);
+  display: block;
+  height: 13px;
+  width: 13px;
+}
+
+.splitSchoolMarker {
+  background: linear-gradient(90deg, var(--left) 0 50%, var(--right) 50% 100%);
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.32),
+    0 6px 14px rgba(15, 23, 42, 0.18);
+  display: block;
+  height: var(--size);
+  position: relative;
+  width: var(--size);
+}
+
+.splitSchoolMarker::after {
+  background: rgba(15, 23, 42, 0.22);
+  content: '';
+  height: 100%;
+  left: calc(50% - 0.5px);
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.splitSchoolMarker.selected {
+  box-shadow:
+    0 0 0 3px #0f172a,
+    0 8px 18px rgba(15, 23, 42, 0.22);
+}
+
+.legendHalf,
+.splitLegendMarker {
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.22);
+  display: block;
+  height: 14px;
+  width: 14px;
+}
+
+.legendHalf.leftCritical {
+  background: linear-gradient(90deg, #dc2626 0 50%, #f8fafc 50% 100%);
+}
+
+.legendHalf.leftNonCritical {
+  background: linear-gradient(90deg, #94a3b8 0 50%, #f8fafc 50% 100%);
+}
+
+.legendHalf.rightProject {
+  background: linear-gradient(90deg, #f8fafc 0 50%, #16a34a 50% 100%);
+}
+
+.legendHalf.rightNoProject {
+  background: linear-gradient(90deg, #f8fafc 0 50%, #e2e8f0 50% 100%);
+}
+
+.splitLegendMarker {
+  background: linear-gradient(90deg, #dc2626 0 50%, #16a34a 50% 100%);
+}
+
+.legendMunicipality {
+  background: rgba(147, 197, 253, 0.2);
+  border: 2px dashed #073763;
+  border-radius: 3px;
+  display: block;
+  height: 13px;
+  width: 16px;
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-tooltip {
+  border: 1px solid #d8e1ea;
+  border-radius: 6px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.municipalityTooltip {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #0f4c81;
+  color: #0f172a;
+  font-weight: 900;
+}
+
 .sectionTabs {
   display: flex;
   gap: 8px;
@@ -584,6 +935,17 @@ footer {
 }
 
 @media (max-width: 780px) {
+  .mapOnlyHeader {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .mapOnlySummary {
+    grid-template-columns: 1fr;
+    width: min(100% - 24px, 1440px);
+  }
+
   .topbar {
     align-items: stretch;
     flex-direction: column;
@@ -613,6 +975,7 @@ footer {
   .offlinePanel,
   .reportPanel,
   .identityPanel,
+  .mapPanel,
   .checklistPanel,
   footer {
     width: min(100% - 24px, 1120px);
@@ -633,6 +996,45 @@ footer {
 
   .sectionTabs {
     margin: 12px auto;
+  }
+
+  .mapHeader {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px;
+  }
+
+  .mapScopeControl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mapFilters {
+    grid-template-columns: 1fr;
+    padding: 0 14px 14px;
+  }
+
+  .mapFilters fieldset > div {
+    grid-template-columns: 1fr;
+  }
+
+  .mapStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 14px 14px;
+  }
+
+  .mapFrame {
+    min-height: 420px;
+  }
+
+  .mapCanvas {
+    height: 420px;
+  }
+
+  .mapFloatingLegend {
+    bottom: 12px;
+    left: 12px;
+    top: auto;
   }
 
   .sectionActions,

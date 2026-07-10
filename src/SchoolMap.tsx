@@ -1,0 +1,364 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import L from 'leaflet'
+import type { School } from './schoolData'
+import { schools } from './schoolData'
+
+type SchoolStatus = {
+  critical: boolean
+  hasProject: boolean
+  criticalServices: string[]
+  projectDetail: string
+}
+
+type SchoolMapProps = {
+  schoolStatuses: Record<string, SchoolStatus>
+  selectedSchool?: School
+  selectedMunicipality?: string
+}
+
+type MappedSchool = School & {
+  lat: number
+  lng: number
+}
+
+type PolygonGeometry = {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: number[][][] | number[][][][]
+}
+
+type BoundaryFeature = {
+  geometry: PolygonGeometry
+}
+
+type BoundaryFeatureCollection = {
+  features: BoundaryFeature[]
+}
+
+type CriticalFilter = 'all' | 'critical' | 'nonCritical'
+type ProjectFilter = 'all' | 'withProject' | 'withoutProject'
+
+const CRITICAL_COLOR = '#dc2626'
+const NON_CRITICAL_COLOR = '#94a3b8'
+const PROJECT_COLOR = '#16a34a'
+const NO_PROJECT_COLOR = '#e2e8f0'
+
+function parseCoordinate(value: string, kind: 'lat' | 'lng') {
+  if (!value) return null
+
+  const normalized = Number(value.replace(',', '.'))
+  if (!Number.isFinite(normalized)) return null
+
+  const min = kind === 'lat' ? -10 : -42
+  const max = kind === 'lat' ? -7 : -34
+  if (normalized >= min && normalized <= max) return normalized
+
+  for (const divisor of [10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000, 10_000_000_000]) {
+    const candidate = normalized / divisor
+    if (candidate >= min && candidate <= max) return candidate
+  }
+
+  return null
+}
+
+const mappedSchools: MappedSchool[] = schools
+  .map((school) => {
+    const lat = parseCoordinate(school.latitude, 'lat')
+    const lng = parseCoordinate(school.longitude, 'lng')
+    return lat === null || lng === null ? null : { ...school, lat, lng }
+  })
+  .filter((school): school is MappedSchool => school !== null)
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
+function isPointInsideRing(lng: number, lat: number, ring: number[][]) {
+  let inside = false
+  let previousIndex = ring.length - 1
+
+  for (let index = 0; index < ring.length; index += 1) {
+    const [currentLng, currentLat] = ring[index]
+    const [previousLng, previousLat] = ring[previousIndex]
+    const intersects = currentLat > lat !== previousLat > lat
+    const crossLng = ((previousLng - currentLng) * (lat - currentLat)) / (previousLat - currentLat || Number.EPSILON) + currentLng
+
+    if (intersects && lng < crossLng) inside = !inside
+    previousIndex = index
+  }
+
+  return inside
+}
+
+function isPointInsidePolygon(lng: number, lat: number, polygon: number[][][]) {
+  const [outerRing, ...holes] = polygon
+  return isPointInsideRing(lng, lat, outerRing) && !holes.some((hole) => isPointInsideRing(lng, lat, hole))
+}
+
+function isPointInsideGeometry(lng: number, lat: number, geometry: PolygonGeometry) {
+  if (geometry.type === 'Polygon') return isPointInsidePolygon(lng, lat, geometry.coordinates as number[][][])
+  return (geometry.coordinates as number[][][][]).some((polygon) => isPointInsidePolygon(lng, lat, polygon))
+}
+
+function isPointInsideFeatureCollection(lng: number, lat: number, collection: BoundaryFeatureCollection) {
+  return collection.features.some((feature) => isPointInsideGeometry(lng, lat, feature.geometry))
+}
+
+function splitMarkerIcon(status: SchoolStatus, selected: boolean) {
+  const left = status.critical ? CRITICAL_COLOR : NON_CRITICAL_COLOR
+  const right = status.hasProject ? PROJECT_COLOR : NO_PROJECT_COLOR
+  const size = selected ? 22 : 16
+
+  return L.divIcon({
+    className: '',
+    html: `<span class="splitSchoolMarker ${selected ? 'selected' : ''}" style="--left:${left};--right:${right};--size:${size}px"></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  })
+}
+
+export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality }: SchoolMapProps) {
+  const [scope, setScope] = useState<'state' | 'municipality'>('state')
+  const [criticalFilter, setCriticalFilter] = useState<CriticalFilter>('all')
+  const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all')
+  const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
+  const mapNode = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const layerRef = useRef<L.LayerGroup | null>(null)
+  const municipalityLayerRef = useRef<L.GeoJSON | null>(null)
+
+  const scopedSchools = useMemo(() => {
+    const schoolsInsidePe = validIneps ? mappedSchools.filter((school) => validIneps.has(school.inep)) : mappedSchools
+    if (scope === 'municipality' && selectedMunicipality) {
+      return schoolsInsidePe.filter((school) => school.municipality === selectedMunicipality)
+    }
+    return schoolsInsidePe
+  }, [scope, selectedMunicipality, validIneps])
+
+  const visibleSchools = useMemo(() => {
+    return scopedSchools.filter((school) => {
+      const status = schoolStatuses[school.inep] ?? { critical: false, hasProject: false }
+      const matchesCritical =
+        criticalFilter === 'all' ||
+        (criticalFilter === 'critical' && status.critical) ||
+        (criticalFilter === 'nonCritical' && !status.critical)
+      const matchesProject =
+        projectFilter === 'all' ||
+        (projectFilter === 'withProject' && status.hasProject) ||
+        (projectFilter === 'withoutProject' && !status.hasProject)
+
+      return matchesCritical && matchesProject
+    })
+  }, [criticalFilter, projectFilter, schoolStatuses, scopedSchools])
+
+  const scopedTotals = useMemo(() => {
+    const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0 }
+    for (const school of scopedSchools) {
+      const status = schoolStatuses[school.inep]
+      if (status?.critical) result.critical += 1
+      else result.nonCritical += 1
+      if (status?.hasProject) result.withProject += 1
+      else result.withoutProject += 1
+    }
+    return result
+  }, [schoolStatuses, scopedSchools])
+
+  const selectedMappedSchool = useMemo(() => {
+    if (!selectedSchool) return null
+    const mappedSchool = mappedSchools.find((school) => school.inep === selectedSchool.inep) ?? null
+    if (mappedSchool && validIneps && !validIneps.has(mappedSchool.inep)) return null
+    return mappedSchool
+  }, [selectedSchool, validIneps])
+
+  const totals = useMemo(() => {
+    const result = { total: visibleSchools.length, critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, both: 0 }
+    for (const school of visibleSchools) {
+      const status = schoolStatuses[school.inep]
+      if (status?.critical) result.critical += 1
+      else result.nonCritical += 1
+      if (status?.hasProject) result.withProject += 1
+      else result.withoutProject += 1
+      if (status?.critical && status?.hasProject) result.both += 1
+    }
+    return result
+  }, [schoolStatuses, visibleSchools])
+
+  const outsidePeCount = validIneps ? mappedSchools.length - validIneps.size : 0
+
+  useEffect(() => {
+    if (!mapNode.current || mapRef.current) return
+
+    const map = L.map(mapNode.current, {
+      center: [-8.4, -37.8],
+      zoom: 7,
+      zoomControl: false,
+      attributionControl: true,
+    })
+
+    map.createPane('municipality-boundaries')
+    const municipalityPane = map.getPane('municipality-boundaries')
+    if (municipalityPane) {
+      municipalityPane.style.zIndex = '420'
+      municipalityPane.style.pointerEvents = 'auto'
+    }
+
+    map.createPane('school-points')
+    const schoolPane = map.getPane('school-points')
+    if (schoolPane) schoolPane.style.zIndex = '650'
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map)
+
+    mapRef.current = map
+    layerRef.current = L.layerGroup().addTo(map)
+    window.setTimeout(() => map.invalidateSize(), 100)
+
+    fetch('/data/pe-municipios.geojson')
+      .then((response) => response.json())
+      .then((geojson: BoundaryFeatureCollection) => {
+        if (!mapRef.current) return
+        municipalityLayerRef.current = L.geoJSON(geojson as unknown as GeoJSON.GeoJsonObject, {
+          style: {
+            color: '#073763',
+            dashArray: '6 3',
+            fillColor: '#bfdbfe',
+            fillOpacity: 0.02,
+            opacity: 1,
+            pane: 'municipality-boundaries',
+            weight: 3,
+          },
+          onEachFeature: (feature, layer) => {
+            const name = String(feature.properties?.nome ?? 'Município')
+            layer.bindTooltip(`<strong>${escapeHtml(name)}</strong>`, { sticky: true, className: 'municipalityTooltip' })
+          },
+        }).addTo(mapRef.current)
+        municipalityLayerRef.current.bringToBack()
+        setValidIneps(new Set(mappedSchools.filter((school) => isPointInsideFeatureCollection(school.lng, school.lat, geojson)).map((school) => school.inep)))
+      })
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+      layerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const layer = layerRef.current
+    if (!map || !layer) return
+
+    layer.clearLayers()
+    const bounds = L.latLngBounds([])
+
+    for (const school of visibleSchools) {
+      const status = schoolStatuses[school.inep] ?? { critical: false, hasProject: false, criticalServices: [], projectDetail: '' }
+      const isSelected = selectedMappedSchool?.inep === school.inep
+      const marker = L.marker([school.lat, school.lng], {
+        icon: splitMarkerIcon(status, isSelected),
+        pane: 'school-points',
+      })
+      const criticalLabel = status.critical ? 'Crítica' : 'Não crítica'
+      const projectLabel = status.hasProject ? 'Com projeto' : 'Sem projeto'
+      const services = status.criticalServices.length ? `<br /><strong>Serviços:</strong> ${escapeHtml(status.criticalServices.slice(0, 2).join('; '))}` : ''
+      const project = status.projectDetail ? `<br /><strong>Projeto:</strong> ${escapeHtml(status.projectDetail)}` : ''
+
+      marker.bindTooltip(`<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${criticalLabel} • ${projectLabel}`, { sticky: true })
+      marker.bindPopup(
+        `<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${escapeHtml(school.gre)}<br />INEP ${escapeHtml(school.inep)}<br />${criticalLabel}<br />${projectLabel}${services}${project}${school.address ? `<br />${escapeHtml(school.address)}` : ''}`,
+      )
+      marker.addTo(layer)
+      bounds.extend([school.lat, school.lng])
+    }
+
+    municipalityLayerRef.current?.bringToBack()
+    if (selectedMappedSchool && scope === 'municipality') {
+      map.setView([selectedMappedSchool.lat, selectedMappedSchool.lng], 14)
+      return
+    }
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: scope === 'municipality' ? 11 : 8 })
+  }, [schoolStatuses, scope, selectedMappedSchool, visibleSchools])
+
+  return (
+    <div className="mapPanel">
+      <div className="mapHeader">
+        <div>
+          <span className="eyebrow">Mapa situacional</span>
+          <h2>Criticidade e projetos das escolas</h2>
+          <p>
+            {totals.total} escolas plotadas. {totals.critical} críticas, {totals.withProject} com projeto e {totals.both} críticas com projeto.
+            {outsidePeCount > 0 ? ` ${outsidePeCount} com coordenadas fora dos limites de PE foram ocultadas.` : ''}
+          </p>
+        </div>
+        <div className="mapScopeControl" aria-label="Escopo do mapa">
+          <button className={scope === 'state' ? 'active' : ''} type="button" onClick={() => setScope('state')}>Pernambuco</button>
+          {selectedMunicipality && (
+            <button className={scope === 'municipality' ? 'active' : ''} type="button" onClick={() => setScope('municipality')}>Município atual</button>
+          )}
+        </div>
+      </div>
+
+      <div className="mapFilters" aria-label="Filtros do mapa">
+        <fieldset>
+          <legend>Criticidade</legend>
+          <div>
+            <button className={criticalFilter === 'all' ? 'active' : ''} type="button" onClick={() => setCriticalFilter('all')}>
+              Todas
+            </button>
+            <button className={criticalFilter === 'critical' ? 'active' : ''} type="button" onClick={() => setCriticalFilter('critical')}>
+              Críticas <span>{scopedTotals.critical}</span>
+            </button>
+            <button className={criticalFilter === 'nonCritical' ? 'active' : ''} type="button" onClick={() => setCriticalFilter('nonCritical')}>
+              Não críticas <span>{scopedTotals.nonCritical}</span>
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Projetos</legend>
+          <div>
+            <button className={projectFilter === 'all' ? 'active' : ''} type="button" onClick={() => setProjectFilter('all')}>
+              Todos
+            </button>
+            <button className={projectFilter === 'withProject' ? 'active' : ''} type="button" onClick={() => setProjectFilter('withProject')}>
+              Com projeto <span>{scopedTotals.withProject}</span>
+            </button>
+            <button className={projectFilter === 'withoutProject' ? 'active' : ''} type="button" onClick={() => setProjectFilter('withoutProject')}>
+              Sem projeto <span>{scopedTotals.withoutProject}</span>
+            </button>
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="mapStats">
+        <span><strong>{totals.critical}</strong> críticas</span>
+        <span><strong>{totals.nonCritical}</strong> não críticas</span>
+        <span><strong>{totals.withProject}</strong> com projeto</span>
+        <span><strong>{totals.withoutProject}</strong> sem projeto</span>
+      </div>
+
+      <div className="mapFrame">
+        <aside className="mapFloatingLegend">
+          <strong>Legenda</strong>
+          <div className="legendItems">
+            <div><span className="legendMunicipality" /><p>Limite municipal</p></div>
+            <div><span className="legendHalf leftCritical" /><p>Metade esquerda: crítica</p></div>
+            <div><span className="legendHalf leftNonCritical" /><p>Metade esquerda: não crítica</p></div>
+            <div><span className="legendHalf rightProject" /><p>Metade direita: com projeto</p></div>
+            <div><span className="legendHalf rightNoProject" /><p>Metade direita: sem projeto</p></div>
+            <div><span className="splitLegendMarker" /><p>Exemplo: crítica com projeto</p></div>
+          </div>
+        </aside>
+        <div className="mapCanvas" ref={mapNode} role="img" aria-label="Mapa com escolas críticas e projetos" />
+      </div>
+    </div>
+  )
+}
