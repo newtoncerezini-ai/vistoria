@@ -516,6 +516,15 @@ textarea:focus {
   min-height: 40px;
 }
 
+.mapFilters .greMultiSelect {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-height: 184px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .mapFilters button {
   align-items: center;
   background: var(--surface);
@@ -588,6 +597,102 @@ textarea:focus {
   border-top: 1px solid var(--border);
   height: 680px;
   width: 100%;
+}
+
+.municipalitySummary {
+  border-top: 1px solid var(--border);
+  padding: 18px;
+}
+
+.municipalitySummaryHeader {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.municipalitySummaryHeader h3 {
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.municipalitySummaryHeader > strong {
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary-dark);
+  flex: 0 0 auto;
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.municipalitySearch {
+  align-items: center;
+  display: flex;
+  flex: 1 1 320px;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.municipalitySearch span {
+  color: #20344f;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.municipalitySearch input {
+  background: var(--surface);
+  max-width: 320px;
+  min-height: 40px;
+}
+
+.municipalityTableWrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.municipalityTableWrap table {
+  border-collapse: collapse;
+  min-width: 720px;
+  width: 100%;
+}
+
+.municipalityTableWrap th,
+.municipalityTableWrap td {
+  border-bottom: 1px solid var(--border);
+  color: #20344f;
+  font-size: 13px;
+  padding: 10px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.municipalityTableWrap th:first-child,
+.municipalityTableWrap td:first-child {
+  text-align: left;
+}
+
+.municipalityTableWrap th {
+  background: #eef6ff;
+  color: var(--primary-dark);
+  font-weight: 900;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.municipalityTableWrap td:first-child {
+  font-weight: 800;
+}
+
+.municipalityTableWrap tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .mapFloatingLegend {
@@ -1053,6 +1158,25 @@ footer {
     bottom: 12px;
     left: 12px;
     top: auto;
+  }
+
+  .municipalitySummary {
+    padding: 14px;
+  }
+
+  .municipalitySummaryHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .municipalitySearch {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .municipalitySearch input {
+    max-width: none;
   }
 
   .sectionActions,

@@ -140,7 +140,8 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const [criticalFilter, setCriticalFilter] = useState<CriticalFilter>('all')
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all')
   const [inspectionFilter, setInspectionFilter] = useState<InspectionFilter>('all')
-  const [greFilter, setGreFilter] = useState('all')
+  const [selectedGres, setSelectedGres] = useState<string[]>([])
+  const [municipalityFilter, setMunicipalityFilter] = useState('')
   const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
   const mapNode = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -160,13 +161,18 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   }, [geographySchools])
 
   const scopedSchools = useMemo(() => {
-    if (greFilter === 'all') return geographySchools
-    return geographySchools.filter((school) => school.gre === greFilter)
-  }, [geographySchools, greFilter])
+    if (selectedGres.length === 0) return geographySchools
+    return geographySchools.filter((school) => selectedGres.includes(school.gre))
+  }, [geographySchools, selectedGres])
 
   useEffect(() => {
-    if (greFilter !== 'all' && !greOptions.includes(greFilter)) setGreFilter('all')
-  }, [greFilter, greOptions])
+    const availableGres = new Set(greOptions)
+    setSelectedGres((current) => current.filter((gre) => availableGres.has(gre)))
+  }, [greOptions])
+
+  function toggleGre(gre: string) {
+    setSelectedGres((current) => (current.includes(gre) ? current.filter((item) => item !== gre) : [...current, gre]))
+  }
 
   const visibleSchools = useMemo(() => {
     return scopedSchools.filter((school) => {
@@ -223,6 +229,37 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     }
     return result
   }, [schoolStatuses, visibleSchools])
+
+  const municipalityRows = useMemo(() => {
+    const rows = new Map<string, { municipality: string; total: number; critical: number; withProject: number; inspected: number; criticalProjectInspected: number }>()
+
+    for (const school of visibleSchools) {
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+      const current = rows.get(school.municipality) ?? {
+        municipality: school.municipality,
+        total: 0,
+        critical: 0,
+        withProject: 0,
+        inspected: 0,
+        criticalProjectInspected: 0,
+      }
+
+      current.total += 1
+      if (status.critical) current.critical += 1
+      if (status.hasProject) current.withProject += 1
+      if (status.inspected) current.inspected += 1
+      if (status.critical && status.hasProject && status.inspected) current.criticalProjectInspected += 1
+      rows.set(school.municipality, current)
+    }
+
+    return [...rows.values()].sort((first, second) => first.municipality.localeCompare(second.municipality, 'pt-BR'))
+  }, [schoolStatuses, visibleSchools])
+
+  const filteredMunicipalityRows = useMemo(() => {
+    const query = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
+    if (!query) return municipalityRows
+    return municipalityRows.filter((row) => row.municipality.toLocaleLowerCase('pt-BR').includes(query))
+  }, [municipalityFilter, municipalityRows])
 
   const outsidePeCount = validIneps ? mappedSchools.length - validIneps.size : 0
 
@@ -347,14 +384,16 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       <div className="mapFilters" aria-label="Filtros do mapa">
         <fieldset className="greFilter">
           <legend>GRE</legend>
-          <select value={greFilter} onChange={(event) => setGreFilter(event.target.value)} aria-label="Filtrar por GRE">
-            <option value="all">Todas as GREs</option>
+          <div className="greMultiSelect">
+            <button className={selectedGres.length === 0 ? 'active' : ''} type="button" onClick={() => setSelectedGres([])}>
+              Todas as GREs
+            </button>
             {greOptions.map((gre) => (
-              <option key={gre} value={gre}>
+              <button className={selectedGres.includes(gre) ? 'active' : ''} key={gre} type="button" onClick={() => toggleGre(gre)}>
                 {gre}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </fieldset>
 
         <fieldset>
@@ -425,8 +464,48 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
             <div><span className="splitLegendMarker" /><p>Exemplo: critica, com projeto e vistoriada</p></div>
           </div>
         </aside>
-        <div className="mapCanvas" ref={mapNode} role="img" aria-label="Mapa com escolas críticas e projetos" />
+        <div className="mapCanvas" ref={mapNode} role="img" aria-label="Mapa com escolas criticas, projetos e vistorias" />
       </div>
+
+      <section className="municipalitySummary">
+        <div className="municipalitySummaryHeader">
+          <div>
+            <span className="eyebrow">Resumo municipal</span>
+            <h3>Municípios filtrados</h3>
+          </div>
+          <label className="municipalitySearch">
+            <span>Filtrar município</span>
+            <input value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} placeholder="Digite o município" type="search" />
+          </label>
+          <strong>{filteredMunicipalityRows.length}</strong>
+        </div>
+        <div className="municipalityTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Município</th>
+                <th>Escolas</th>
+                <th>Críticas</th>
+                <th>Com projeto</th>
+                <th>Vistoriadas</th>
+                <th>3 status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMunicipalityRows.map((row) => (
+                <tr key={row.municipality}>
+                  <td>{row.municipality}</td>
+                  <td>{row.total}</td>
+                  <td>{row.critical}</td>
+                  <td>{row.withProject}</td>
+                  <td>{row.inspected}</td>
+                  <td>{row.criticalProjectInspected}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   )
 }
