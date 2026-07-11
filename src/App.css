@@ -478,7 +478,7 @@ textarea:focus {
   border-top: 1px solid var(--border);
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 0 18px 18px;
 }
 
@@ -557,7 +557,7 @@ textarea:focus {
 .mapStats {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   padding: 0 18px 18px;
 }
 
@@ -644,7 +644,7 @@ textarea:focus {
 
 .splitSchoolMarker {
   background: linear-gradient(90deg, var(--left) 0 50%, var(--right) 50% 100%);
-  border: 2px solid #ffffff;
+  border: 3px solid var(--marker-border);
   border-radius: 999px;
   box-shadow:
     0 0 0 1px rgba(15, 23, 42, 0.32),
@@ -672,6 +672,7 @@ textarea:focus {
 }
 
 .legendHalf,
+.legendCriticalBorder,
 .splitLegendMarker {
   border: 2px solid #ffffff;
   border-radius: 999px;
@@ -681,24 +682,30 @@ textarea:focus {
   width: 14px;
 }
 
-.legendHalf.leftCritical {
-  background: linear-gradient(90deg, #dc2626 0 50%, #f8fafc 50% 100%);
+.legendCriticalBorder {
+  background: #ffffff;
+  border-color: #dc2626;
 }
 
-.legendHalf.leftNonCritical {
-  background: linear-gradient(90deg, #94a3b8 0 50%, #f8fafc 50% 100%);
+.legendHalf.leftProject {
+  background: linear-gradient(90deg, #16a34a 0 50%, #f8fafc 50% 100%);
 }
 
-.legendHalf.rightProject {
-  background: linear-gradient(90deg, #f8fafc 0 50%, #16a34a 50% 100%);
+.legendHalf.leftNoProject {
+  background: linear-gradient(90deg, #e2e8f0 0 50%, #f8fafc 50% 100%);
 }
 
-.legendHalf.rightNoProject {
+.legendHalf.rightInspected {
+  background: linear-gradient(90deg, #f8fafc 0 50%, #2563eb 50% 100%);
+}
+
+.legendHalf.rightNotInspected {
   background: linear-gradient(90deg, #f8fafc 0 50%, #e2e8f0 50% 100%);
 }
 
 .splitLegendMarker {
-  background: linear-gradient(90deg, #dc2626 0 50%, #16a34a 50% 100%);
+  background: linear-gradient(90deg, #16a34a 0 50%, #2563eb 50% 100%);
+  border-color: #dc2626;
 }
 
 .legendMunicipality {

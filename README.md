@@ -12,8 +12,8 @@ O projeto foi iniciado como PWA para abrir por link, funcionar bem no celular e 
   municipio, GRE e endereco.
 - Mapa situacional das escolas com latitude/longitude da base, alternando entre Pernambuco inteiro e municipio atual.
 - Limites municipais de Pernambuco carregados em GeoJSON para conferencia territorial.
-- Marcador dividido em duas metades: criticidade na esquerda e situacao de projeto na direita.
-- Filtros combinados por GRE, criticidade e escolas com ou sem projeto.
+- Marcador com borda vermelha para escolas criticas e miolo dividido em duas metades: projeto na esquerda e vistoria na direita.
+- Filtros combinados por GRE, criticidade, escolas com ou sem projeto e escolas vistoriadas ou nao vistoriadas.
 - Configuracao PWA com manifest e service worker.
 
 ## Stack
@@ -35,6 +35,6 @@ npm run dev
 ## Proximas etapas recomendadas
 
 1. Revisar `src/schoolData.ts` sempre que o mapa situacional oficial for atualizado.
-2. Atualizar as bases de criticidade e projetos sempre que as planilhas oficiais forem revisadas.
+2. Atualizar as bases de criticidade, projetos e vistorias sempre que as planilhas oficiais forem revisadas.
 3. Adicionar filtro por municipio.
 4. Criar backend para atualizar status das escolas por usuario/equipe.

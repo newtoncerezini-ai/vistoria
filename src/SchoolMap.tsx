@@ -6,8 +6,10 @@ import { schools } from './schoolData'
 type SchoolStatus = {
   critical: boolean
   hasProject: boolean
+  inspected: boolean
   criticalServices: string[]
   projectDetail: string
+  inspectionLabel: string
 }
 
 type SchoolMapProps = {
@@ -36,11 +38,21 @@ type BoundaryFeatureCollection = {
 
 type CriticalFilter = 'all' | 'critical' | 'nonCritical'
 type ProjectFilter = 'all' | 'withProject' | 'withoutProject'
+type InspectionFilter = 'all' | 'inspected' | 'notInspected'
 
 const CRITICAL_COLOR = '#dc2626'
-const NON_CRITICAL_COLOR = '#94a3b8'
 const PROJECT_COLOR = '#16a34a'
 const NO_PROJECT_COLOR = '#e2e8f0'
+const INSPECTED_COLOR = '#2563eb'
+const NOT_INSPECTED_COLOR = '#e2e8f0'
+const EMPTY_STATUS: SchoolStatus = {
+  critical: false,
+  hasProject: false,
+  inspected: false,
+  criticalServices: [],
+  projectDetail: '',
+  inspectionLabel: '',
+}
 
 function parseCoordinate(value: string, kind: 'lat' | 'lng') {
   if (!value) return null
@@ -109,13 +121,14 @@ function isPointInsideFeatureCollection(lng: number, lat: number, collection: Bo
 }
 
 function splitMarkerIcon(status: SchoolStatus, selected: boolean) {
-  const left = status.critical ? CRITICAL_COLOR : NON_CRITICAL_COLOR
-  const right = status.hasProject ? PROJECT_COLOR : NO_PROJECT_COLOR
+  const left = status.hasProject ? PROJECT_COLOR : NO_PROJECT_COLOR
+  const right = status.inspected ? INSPECTED_COLOR : NOT_INSPECTED_COLOR
+  const border = status.critical ? CRITICAL_COLOR : '#ffffff'
   const size = selected ? 22 : 16
 
   return L.divIcon({
     className: '',
-    html: `<span class="splitSchoolMarker ${selected ? 'selected' : ''}" style="--left:${left};--right:${right};--size:${size}px"></span>`,
+    html: `<span class="splitSchoolMarker ${selected ? 'selected' : ''}" style="--left:${left};--right:${right};--marker-border:${border};--size:${size}px"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -126,6 +139,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const [scope, setScope] = useState<'state' | 'municipality'>('state')
   const [criticalFilter, setCriticalFilter] = useState<CriticalFilter>('all')
   const [projectFilter, setProjectFilter] = useState<ProjectFilter>('all')
+  const [inspectionFilter, setInspectionFilter] = useState<InspectionFilter>('all')
   const [greFilter, setGreFilter] = useState('all')
   const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
   const mapNode = useRef<HTMLDivElement | null>(null)
@@ -156,7 +170,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
 
   const visibleSchools = useMemo(() => {
     return scopedSchools.filter((school) => {
-      const status = schoolStatuses[school.inep] ?? { critical: false, hasProject: false }
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
       const matchesCritical =
         criticalFilter === 'all' ||
         (criticalFilter === 'critical' && status.critical) ||
@@ -165,19 +179,25 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
         projectFilter === 'all' ||
         (projectFilter === 'withProject' && status.hasProject) ||
         (projectFilter === 'withoutProject' && !status.hasProject)
+      const matchesInspection =
+        inspectionFilter === 'all' ||
+        (inspectionFilter === 'inspected' && status.inspected) ||
+        (inspectionFilter === 'notInspected' && !status.inspected)
 
-      return matchesCritical && matchesProject
+      return matchesCritical && matchesProject && matchesInspection
     })
-  }, [criticalFilter, projectFilter, schoolStatuses, scopedSchools])
+  }, [criticalFilter, inspectionFilter, projectFilter, schoolStatuses, scopedSchools])
 
   const scopedTotals = useMemo(() => {
-    const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0 }
+    const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0 }
     for (const school of scopedSchools) {
       const status = schoolStatuses[school.inep]
       if (status?.critical) result.critical += 1
       else result.nonCritical += 1
       if (status?.hasProject) result.withProject += 1
       else result.withoutProject += 1
+      if (status?.inspected) result.inspected += 1
+      else result.notInspected += 1
     }
     return result
   }, [schoolStatuses, scopedSchools])
@@ -190,14 +210,16 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   }, [selectedSchool, validIneps])
 
   const totals = useMemo(() => {
-    const result = { total: visibleSchools.length, critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, both: 0 }
+    const result = { total: visibleSchools.length, critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0, criticalProjectInspected: 0 }
     for (const school of visibleSchools) {
       const status = schoolStatuses[school.inep]
       if (status?.critical) result.critical += 1
       else result.nonCritical += 1
       if (status?.hasProject) result.withProject += 1
       else result.withoutProject += 1
-      if (status?.critical && status?.hasProject) result.both += 1
+      if (status?.inspected) result.inspected += 1
+      else result.notInspected += 1
+      if (status?.critical && status?.hasProject && status?.inspected) result.criticalProjectInspected += 1
     }
     return result
   }, [schoolStatuses, visibleSchools])
@@ -274,20 +296,22 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     const bounds = L.latLngBounds([])
 
     for (const school of visibleSchools) {
-      const status = schoolStatuses[school.inep] ?? { critical: false, hasProject: false, criticalServices: [], projectDetail: '' }
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
       const isSelected = selectedMappedSchool?.inep === school.inep
       const marker = L.marker([school.lat, school.lng], {
         icon: splitMarkerIcon(status, isSelected),
         pane: 'school-points',
       })
-      const criticalLabel = status.critical ? 'Crítica' : 'Não crítica'
+      const criticalLabel = status.critical ? 'Critica' : 'Nao critica'
       const projectLabel = status.hasProject ? 'Com projeto' : 'Sem projeto'
-      const services = status.criticalServices.length ? `<br /><strong>Serviços:</strong> ${escapeHtml(status.criticalServices.slice(0, 2).join('; '))}` : ''
+      const inspectionLabel = status.inspected ? 'Vistoriada' : 'Nao vistoriada'
+      const services = status.criticalServices.length ? `<br /><strong>Servicos:</strong> ${escapeHtml(status.criticalServices.slice(0, 2).join('; '))}` : ''
       const project = status.projectDetail ? `<br /><strong>Projeto:</strong> ${escapeHtml(status.projectDetail)}` : ''
+      const inspection = status.inspectionLabel ? `<br /><strong>Vistoria:</strong> ${escapeHtml(status.inspectionLabel)}` : ''
 
-      marker.bindTooltip(`<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${criticalLabel} • ${projectLabel}`, { sticky: true })
+      marker.bindTooltip(`<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${criticalLabel} - ${projectLabel} - ${inspectionLabel}`, { sticky: true })
       marker.bindPopup(
-        `<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${escapeHtml(school.gre)}<br />INEP ${escapeHtml(school.inep)}<br />${criticalLabel}<br />${projectLabel}${services}${project}${school.address ? `<br />${escapeHtml(school.address)}` : ''}`,
+        `<strong>${escapeHtml(school.name)}</strong><br />${escapeHtml(school.municipality)}<br />${escapeHtml(school.gre)}<br />INEP ${escapeHtml(school.inep)}<br />${criticalLabel}<br />${projectLabel}<br />${inspectionLabel}${services}${project}${inspection}${school.address ? `<br />${escapeHtml(school.address)}` : ''}`,
       )
       marker.addTo(layer)
       bounds.extend([school.lat, school.lng])
@@ -306,9 +330,9 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       <div className="mapHeader">
         <div>
           <span className="eyebrow">Mapa situacional</span>
-          <h2>Criticidade e projetos das escolas</h2>
+          <h2>Criticidade, projetos e vistorias</h2>
           <p>
-            {totals.total} escolas plotadas. {totals.critical} críticas, {totals.withProject} com projeto e {totals.both} críticas com projeto.
+            {totals.total} escolas plotadas. {totals.critical} criticas, {totals.withProject} com projeto, {totals.inspected} vistoriadas e {totals.criticalProjectInspected} com os tres status.
             {outsidePeCount > 0 ? ` ${outsidePeCount} com coordenadas fora dos limites de PE foram ocultadas.` : ''}
           </p>
         </div>
@@ -362,6 +386,21 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
             </button>
           </div>
         </fieldset>
+
+        <fieldset>
+          <legend>Vistoria</legend>
+          <div>
+            <button className={inspectionFilter === 'all' ? 'active' : ''} type="button" onClick={() => setInspectionFilter('all')}>
+              Todas
+            </button>
+            <button className={inspectionFilter === 'inspected' ? 'active' : ''} type="button" onClick={() => setInspectionFilter('inspected')}>
+              Vistoriadas <span>{scopedTotals.inspected}</span>
+            </button>
+            <button className={inspectionFilter === 'notInspected' ? 'active' : ''} type="button" onClick={() => setInspectionFilter('notInspected')}>
+              Nao vistoriadas <span>{scopedTotals.notInspected}</span>
+            </button>
+          </div>
+        </fieldset>
       </div>
 
       <div className="mapStats">
@@ -369,6 +408,8 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
         <span><strong>{totals.nonCritical}</strong> não críticas</span>
         <span><strong>{totals.withProject}</strong> com projeto</span>
         <span><strong>{totals.withoutProject}</strong> sem projeto</span>
+        <span><strong>{totals.inspected}</strong> vistoriadas</span>
+        <span><strong>{totals.notInspected}</strong> nao vistoriadas</span>
       </div>
 
       <div className="mapFrame">
@@ -376,11 +417,12 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
           <strong>Legenda</strong>
           <div className="legendItems">
             <div><span className="legendMunicipality" /><p>Limite municipal</p></div>
-            <div><span className="legendHalf leftCritical" /><p>Metade esquerda: crítica</p></div>
-            <div><span className="legendHalf leftNonCritical" /><p>Metade esquerda: não crítica</p></div>
-            <div><span className="legendHalf rightProject" /><p>Metade direita: com projeto</p></div>
-            <div><span className="legendHalf rightNoProject" /><p>Metade direita: sem projeto</p></div>
-            <div><span className="splitLegendMarker" /><p>Exemplo: crítica com projeto</p></div>
+            <div><span className="legendCriticalBorder" /><p>Borda vermelha: critica</p></div>
+            <div><span className="legendHalf leftProject" /><p>Metade esquerda: com projeto</p></div>
+            <div><span className="legendHalf leftNoProject" /><p>Metade esquerda: sem projeto</p></div>
+            <div><span className="legendHalf rightInspected" /><p>Metade direita: vistoriada</p></div>
+            <div><span className="legendHalf rightNotInspected" /><p>Metade direita: nao vistoriada</p></div>
+            <div><span className="splitLegendMarker" /><p>Exemplo: critica, com projeto e vistoriada</p></div>
           </div>
         </aside>
         <div className="mapCanvas" ref={mapNode} role="img" aria-label="Mapa com escolas críticas e projetos" />

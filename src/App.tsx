@@ -3,10 +3,11 @@ import { MapPinned, Signal, WifiOff } from 'lucide-react'
 import './App.css'
 import { SchoolMap } from './SchoolMap'
 import { schools } from './schoolData'
-import { criticalSchoolIneps, projectSchoolIneps, schoolCriticalServices, schoolProjectDetails } from './schoolStatusData'
+import { criticalSchoolIneps, inspectedSchoolIneps, projectSchoolIneps, schoolCriticalServices, schoolInspectionLabels, schoolProjectDetails } from './schoolStatusData'
 
 const criticalServicesByInep = schoolCriticalServices as Record<string, string[]>
 const projectDetailsByInep = schoolProjectDetails as Record<string, string>
+const inspectionLabelsByInep = schoolInspectionLabels as Record<string, string>
 
 function App() {
   const online = navigator.onLine
@@ -17,8 +18,10 @@ function App() {
         {
           critical: criticalSchoolIneps.has(school.inep),
           hasProject: projectSchoolIneps.has(school.inep),
+          inspected: inspectedSchoolIneps.has(school.inep),
           criticalServices: criticalServicesByInep[school.inep] ?? [],
           projectDetail: projectDetailsByInep[school.inep] ?? '',
+          inspectionLabel: inspectionLabelsByInep[school.inep] ?? '',
         },
       ]),
     )
@@ -51,8 +54,8 @@ function App() {
           escolas com coordenadas válidas
         </div>
         <div>
-          <strong>2 informações</strong>
-          criticidade e projeto no mesmo marcador
+          <strong>3 informações</strong>
+          criticidade, projeto e vistoria no mesmo marcador
         </div>
       </section>
 
