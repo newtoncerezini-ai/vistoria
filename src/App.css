@@ -587,6 +587,19 @@ textarea:focus {
   line-height: 1.1;
 }
 
+.coordinateNotice {
+  background: #fff8e6;
+  border-top: 1px solid #f2d492;
+  color: #714a00;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 18px;
+}
+
+.coordinateNotice strong {
+  color: #5f3d00;
+}
+
 .mapFrame {
   min-height: 680px;
   position: relative;
@@ -727,6 +740,15 @@ textarea:focus {
 
 .municipalityTableWrap tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.municipalityTableWrap .clickableSchoolRow {
+  cursor: pointer;
+}
+
+.municipalityTableWrap .clickableSchoolRow:hover td {
+  background: #eef6ff;
+  color: var(--primary-dark);
 }
 
 .mapFloatingLegend {

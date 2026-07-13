@@ -90,6 +90,7 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#039;')
 }
 
+
 function formatYesNo(value: boolean) {
   return value ? 'Sim' : 'Nao'
 }
@@ -148,6 +149,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const [selectedGres, setSelectedGres] = useState<string[]>([])
   const [municipalityFilter, setMunicipalityFilter] = useState('')
   const [schoolNameFilter, setSchoolNameFilter] = useState('')
+  const [focusedSchoolInep, setFocusedSchoolInep] = useState<string | null>(null)
   const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
   const mapNode = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -222,16 +224,23 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   }, [criticalFilter, inspectionFilter, projectFilter, schoolStatuses, selectedGres])
 
   const tableTotals = useMemo(() => {
-    const result = { total: tableSchools.length, critical: 0, withProject: 0, inspected: 0, criticalProjectInspected: 0 }
+    const result = { total: tableSchools.length, critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0, criticalProjectInspected: 0 }
     for (const school of tableSchools) {
       const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
       if (status.critical) result.critical += 1
+      else result.nonCritical += 1
       if (status.hasProject) result.withProject += 1
+      else result.withoutProject += 1
       if (status.inspected) result.inspected += 1
+      else result.notInspected += 1
       if (status.critical && status.hasProject && status.inspected) result.criticalProjectInspected += 1
     }
     return result
   }, [schoolStatuses, tableSchools])
+
+  const tableSchoolsWithoutCoordinates = useMemo(() => {
+    return tableSchools.filter((school) => !mappedSchoolIneps.has(school.inep)).length
+  }, [tableSchools])
 
   const scopedTotals = useMemo(() => {
     const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0 }
@@ -332,6 +341,14 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     URL.revokeObjectURL(url)
   }
 
+  function focusSchoolOnMap(school: School) {
+    const mappedSchool = mappedSchools.find((item) => item.inep === school.inep)
+    if (!mappedSchool || !mapRef.current) return
+    setFocusedSchoolInep(school.inep)
+    mapRef.current.setView([mappedSchool.lat, mappedSchool.lng], 14)
+    mapNode.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   const outsidePeCount = validIneps ? mappedSchools.length - validIneps.size : 0
 
   useEffect(() => {
@@ -405,7 +422,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
 
     for (const school of visibleSchools) {
       const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
-      const isSelected = selectedMappedSchool?.inep === school.inep
+      const isSelected = selectedMappedSchool?.inep === school.inep || focusedSchoolInep === school.inep
       const marker = L.marker([school.lat, school.lng], {
         icon: splitMarkerIcon(status, isSelected),
         pane: 'school-points',
@@ -431,7 +448,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       return
     }
     if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: scope === 'municipality' ? 11 : 8 })
-  }, [schoolStatuses, scope, selectedMappedSchool, visibleSchools])
+  }, [focusedSchoolInep, schoolStatuses, scope, selectedMappedSchool, visibleSchools])
 
   return (
     <div className="mapPanel">
@@ -514,13 +531,19 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       </div>
 
       <div className="mapStats">
-        <span><strong>{totals.critical}</strong> críticas</span>
-        <span><strong>{totals.nonCritical}</strong> não críticas</span>
-        <span><strong>{totals.withProject}</strong> com projeto</span>
-        <span><strong>{totals.withoutProject}</strong> sem projeto</span>
-        <span><strong>{totals.inspected}</strong> vistoriadas</span>
-        <span><strong>{totals.notInspected}</strong> nao vistoriadas</span>
+        <span><strong>{tableTotals.critical}</strong> críticas</span>
+        <span><strong>{tableTotals.nonCritical}</strong> não críticas</span>
+        <span><strong>{tableTotals.withProject}</strong> com projeto</span>
+        <span><strong>{tableTotals.withoutProject}</strong> sem projeto</span>
+        <span><strong>{tableTotals.inspected}</strong> vistoriadas</span>
+        <span><strong>{tableTotals.notInspected}</strong> nao vistoriadas</span>
       </div>
+
+      {tableSchoolsWithoutCoordinates > 0 && (
+        <div className="coordinateNotice">
+          <strong>{tableSchoolsWithoutCoordinates}</strong> escolas deste recorte estao sem coordenadas validas e nao aparecem no mapa.
+        </div>
+      )}
 
       <div className="mapFrame">
         <aside className="mapFloatingLegend">
@@ -576,8 +599,9 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
             <tbody>
               {exportSchools.map((school) => {
                 const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+                const canFocusMap = mappedSchoolIneps.has(school.inep)
                 return (
-                  <tr key={school.inep}>
+                  <tr className={canFocusMap ? 'clickableSchoolRow' : ''} key={school.inep} onClick={() => focusSchoolOnMap(school)}>
                     <td>{school.municipality}</td>
                     <td>{school.name}</td>
                     <td>{school.inep}</td>
