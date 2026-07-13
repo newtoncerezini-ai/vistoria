@@ -173,6 +173,11 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     return geographySchools.filter((school) => selectedGres.includes(school.gre))
   }, [geographySchools, selectedGres])
 
+  const filterCountSchools = useMemo(() => {
+    if (selectedGres.length === 0) return schools
+    return schools.filter((school) => selectedGres.includes(school.gre))
+  }, [selectedGres])
+
   useEffect(() => {
     const availableGres = new Set(greOptions)
     setSelectedGres((current) => current.filter((gre) => availableGres.has(gre)))
@@ -244,7 +249,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
 
   const scopedTotals = useMemo(() => {
     const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0 }
-    for (const school of scopedSchools) {
+    for (const school of filterCountSchools) {
       const status = schoolStatuses[school.inep]
       if (status?.critical) result.critical += 1
       else result.nonCritical += 1
@@ -254,7 +259,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       else result.notInspected += 1
     }
     return result
-  }, [schoolStatuses, scopedSchools])
+  }, [filterCountSchools, schoolStatuses])
 
   const selectedMappedSchool = useMemo(() => {
     if (!selectedSchool) return null
