@@ -619,6 +619,12 @@ textarea:focus {
   margin: 0;
 }
 
+.municipalitySummaryHeader p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
 .municipalitySummaryHeader > strong {
   background: var(--primary-soft);
   border-radius: 999px;

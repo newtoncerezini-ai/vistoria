@@ -194,6 +194,39 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     })
   }, [criticalFilter, inspectionFilter, projectFilter, schoolStatuses, scopedSchools])
 
+  const tableSchools = useMemo(() => {
+    return schools.filter((school) => {
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+      const matchesGre = selectedGres.length === 0 || selectedGres.includes(school.gre)
+      const matchesCritical =
+        criticalFilter === 'all' ||
+        (criticalFilter === 'critical' && status.critical) ||
+        (criticalFilter === 'nonCritical' && !status.critical)
+      const matchesProject =
+        projectFilter === 'all' ||
+        (projectFilter === 'withProject' && status.hasProject) ||
+        (projectFilter === 'withoutProject' && !status.hasProject)
+      const matchesInspection =
+        inspectionFilter === 'all' ||
+        (inspectionFilter === 'inspected' && status.inspected) ||
+        (inspectionFilter === 'notInspected' && !status.inspected)
+
+      return matchesGre && matchesCritical && matchesProject && matchesInspection
+    })
+  }, [criticalFilter, inspectionFilter, projectFilter, schoolStatuses, selectedGres])
+
+  const tableTotals = useMemo(() => {
+    const result = { total: tableSchools.length, critical: 0, withProject: 0, inspected: 0, criticalProjectInspected: 0 }
+    for (const school of tableSchools) {
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+      if (status.critical) result.critical += 1
+      if (status.hasProject) result.withProject += 1
+      if (status.inspected) result.inspected += 1
+      if (status.critical && status.hasProject && status.inspected) result.criticalProjectInspected += 1
+    }
+    return result
+  }, [schoolStatuses, tableSchools])
+
   const scopedTotals = useMemo(() => {
     const result = { critical: 0, nonCritical: 0, withProject: 0, withoutProject: 0, inspected: 0, notInspected: 0 }
     for (const school of scopedSchools) {
@@ -233,7 +266,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const municipalityRows = useMemo(() => {
     const rows = new Map<string, { municipality: string; total: number; critical: number; withProject: number; inspected: number; criticalProjectInspected: number }>()
 
-    for (const school of visibleSchools) {
+    for (const school of tableSchools) {
       const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
       const current = rows.get(school.municipality) ?? {
         municipality: school.municipality,
@@ -253,7 +286,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     }
 
     return [...rows.values()].sort((first, second) => first.municipality.localeCompare(second.municipality, 'pt-BR'))
-  }, [schoolStatuses, visibleSchools])
+  }, [schoolStatuses, tableSchools])
 
   const filteredMunicipalityRows = useMemo(() => {
     const query = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
@@ -470,8 +503,11 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       <section className="municipalitySummary">
         <div className="municipalitySummaryHeader">
           <div>
-            <span className="eyebrow">Resumo municipal</span>
+            <span className="eyebrow">Resumo municipal da base</span>
             <h3>Municípios filtrados</h3>
+            <p>
+              {tableTotals.total} escolas na base. {tableTotals.critical} criticas, {tableTotals.withProject} com projeto, {tableTotals.inspected} vistoriadas e {tableTotals.criticalProjectInspected} com os tres status.
+            </p>
           </div>
           <label className="municipalitySearch">
             <span>Filtrar município</span>
