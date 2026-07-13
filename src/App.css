@@ -605,10 +605,10 @@ textarea:focus {
 }
 
 .municipalitySummaryHeader {
-  align-items: center;
-  display: flex;
+  align-items: end;
+  display: grid;
   gap: 16px;
-  justify-content: space-between;
+  grid-template-columns: minmax(260px, 1fr) minmax(190px, 260px) minmax(220px, 320px) auto auto;
   margin-bottom: 12px;
 }
 
@@ -635,11 +635,8 @@ textarea:focus {
 }
 
 .municipalitySearch {
-  align-items: center;
-  display: flex;
-  flex: 1 1 320px;
-  gap: 10px;
-  justify-content: flex-end;
+  display: grid;
+  gap: 6px;
 }
 
 .municipalitySearch span {
@@ -652,7 +649,6 @@ textarea:focus {
 
 .municipalitySearch input {
   background: var(--surface);
-  max-width: 320px;
   min-height: 40px;
 }
 
@@ -691,7 +687,7 @@ textarea:focus {
 
 .municipalityTableWrap table {
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: 980px;
   width: 100%;
 }
 
@@ -708,6 +704,12 @@ textarea:focus {
 .municipalityTableWrap th:first-child,
 .municipalityTableWrap td:first-child {
   text-align: left;
+}
+
+.municipalityTableWrap th:nth-child(2),
+.municipalityTableWrap td:nth-child(2) {
+  text-align: left;
+  white-space: normal;
 }
 
 .municipalityTableWrap th {
@@ -1198,12 +1200,10 @@ footer {
 
   .municipalitySummaryHeader {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .municipalitySearch {
-    align-items: stretch;
-    flex-direction: column;
     gap: 6px;
   }
 

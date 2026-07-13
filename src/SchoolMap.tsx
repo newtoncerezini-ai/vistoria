@@ -147,6 +147,7 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
   const [inspectionFilter, setInspectionFilter] = useState<InspectionFilter>('all')
   const [selectedGres, setSelectedGres] = useState<string[]>([])
   const [municipalityFilter, setMunicipalityFilter] = useState('')
+  const [schoolNameFilter, setSchoolNameFilter] = useState('')
   const [validIneps, setValidIneps] = useState<Set<string> | null>(null)
   const mapNode = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -268,42 +269,14 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     return result
   }, [schoolStatuses, visibleSchools])
 
-  const municipalityRows = useMemo(() => {
-    const rows = new Map<string, { municipality: string; total: number; critical: number; withProject: number; inspected: number; criticalProjectInspected: number }>()
-
-    for (const school of tableSchools) {
-      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
-      const current = rows.get(school.municipality) ?? {
-        municipality: school.municipality,
-        total: 0,
-        critical: 0,
-        withProject: 0,
-        inspected: 0,
-        criticalProjectInspected: 0,
-      }
-
-      current.total += 1
-      if (status.critical) current.critical += 1
-      if (status.hasProject) current.withProject += 1
-      if (status.inspected) current.inspected += 1
-      if (status.critical && status.hasProject && status.inspected) current.criticalProjectInspected += 1
-      rows.set(school.municipality, current)
-    }
-
-    return [...rows.values()].sort((first, second) => first.municipality.localeCompare(second.municipality, 'pt-BR'))
-  }, [schoolStatuses, tableSchools])
-
-  const filteredMunicipalityRows = useMemo(() => {
-    const query = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
-    if (!query) return municipalityRows
-    return municipalityRows.filter((row) => row.municipality.toLocaleLowerCase('pt-BR').includes(query))
-  }, [municipalityFilter, municipalityRows])
-
   const exportSchools = useMemo(() => {
-    const query = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
-    if (!query) return tableSchools
-    return tableSchools.filter((school) => school.municipality.toLocaleLowerCase('pt-BR').includes(query))
-  }, [municipalityFilter, tableSchools])
+    const municipalityQuery = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
+    const schoolQuery = schoolNameFilter.trim().toLocaleLowerCase('pt-BR')
+    return tableSchools
+      .filter((school) => !municipalityQuery || school.municipality.toLocaleLowerCase('pt-BR').includes(municipalityQuery))
+      .filter((school) => !schoolQuery || school.name.toLocaleLowerCase('pt-BR').includes(schoolQuery))
+      .sort((first, second) => first.municipality.localeCompare(second.municipality, 'pt-BR') || first.name.localeCompare(second.name, 'pt-BR'))
+  }, [municipalityFilter, schoolNameFilter, tableSchools])
 
   function exportFilteredSchools() {
     const headers = [
@@ -568,8 +541,8 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
       <section className="municipalitySummary">
         <div className="municipalitySummaryHeader">
           <div>
-            <span className="eyebrow">Resumo municipal da base</span>
-            <h3>Municípios filtrados</h3>
+            <span className="eyebrow">Lista de escolas da base</span>
+            <h3>Escolas filtradas</h3>
             <p>
               {tableTotals.total} escolas na base. {tableTotals.critical} criticas, {tableTotals.withProject} com projeto, {tableTotals.inspected} vistoriadas e {tableTotals.criticalProjectInspected} com os tres status.
             </p>
@@ -578,34 +551,43 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
             <span>Filtrar município</span>
             <input value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} placeholder="Digite o município" type="search" />
           </label>
+          <label className="municipalitySearch">
+            <span>Filtrar escola</span>
+            <input value={schoolNameFilter} onChange={(event) => setSchoolNameFilter(event.target.value)} placeholder="Digite o nome da escola" type="search" />
+          </label>
           <button className="exportButton" disabled={exportSchools.length === 0} type="button" onClick={exportFilteredSchools}>
             Exportar XLS <span>{exportSchools.length}</span>
           </button>
-          <strong>{filteredMunicipalityRows.length}</strong>
+          <strong>{exportSchools.length}</strong>
         </div>
         <div className="municipalityTableWrap">
           <table>
             <thead>
               <tr>
                 <th>Município</th>
-                <th>Escolas</th>
-                <th>Críticas</th>
+                <th>Escola</th>
+                <th>INEP</th>
+                <th>Crítica</th>
                 <th>Com projeto</th>
-                <th>Vistoriadas</th>
+                <th>Vistoriada</th>
                 <th>3 status</th>
               </tr>
             </thead>
             <tbody>
-              {filteredMunicipalityRows.map((row) => (
-                <tr key={row.municipality}>
-                  <td>{row.municipality}</td>
-                  <td>{row.total}</td>
-                  <td>{row.critical}</td>
-                  <td>{row.withProject}</td>
-                  <td>{row.inspected}</td>
-                  <td>{row.criticalProjectInspected}</td>
-                </tr>
-              ))}
+              {exportSchools.map((school) => {
+                const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+                return (
+                  <tr key={school.inep}>
+                    <td>{school.municipality}</td>
+                    <td>{school.name}</td>
+                    <td>{school.inep}</td>
+                    <td>{formatYesNo(status.critical)}</td>
+                    <td>{formatYesNo(status.hasProject)}</td>
+                    <td>{formatYesNo(status.inspected)}</td>
+                    <td>{formatYesNo(status.critical && status.hasProject && status.inspected)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
