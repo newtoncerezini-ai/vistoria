@@ -15,6 +15,7 @@ O projeto foi iniciado como PWA para abrir por link, funcionar bem no celular e 
 - Marcador com borda vermelha para escolas criticas e miolo dividido em duas metades: projeto na esquerda e vistoria na direita.
 - Filtros combinados por multiplas GREs, criticidade, escolas com ou sem projeto e escolas vistoriadas ou nao vistoriadas.
 - Tabela-resumo por municipio baseada na base completa, com filtro textual e quantidade de escolas, criticas, com projeto, vistoriadas e escolas com os tres status.
+- Exportacao em XLS da lista de escolas contidas nos filtros atuais.
 - Configuracao PWA com manifest e service worker.
 
 ## Stack

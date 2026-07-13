@@ -79,6 +79,7 @@ const mappedSchools: MappedSchool[] = schools
     return lat === null || lng === null ? null : { ...school, lat, lng }
   })
   .filter((school): school is MappedSchool => school !== null)
+const mappedSchoolIneps = new Set(mappedSchools.map((school) => school.inep))
 
 function escapeHtml(value: string) {
   return value
@@ -87,6 +88,10 @@ function escapeHtml(value: string) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+function formatYesNo(value: boolean) {
+  return value ? 'Sim' : 'Nao'
 }
 
 function isPointInsideRing(lng: number, lat: number, ring: number[][]) {
@@ -293,6 +298,66 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
     if (!query) return municipalityRows
     return municipalityRows.filter((row) => row.municipality.toLocaleLowerCase('pt-BR').includes(query))
   }, [municipalityFilter, municipalityRows])
+
+  const exportSchools = useMemo(() => {
+    const query = municipalityFilter.trim().toLocaleLowerCase('pt-BR')
+    if (!query) return tableSchools
+    return tableSchools.filter((school) => school.municipality.toLocaleLowerCase('pt-BR').includes(query))
+  }, [municipalityFilter, tableSchools])
+
+  function exportFilteredSchools() {
+    const headers = [
+      'INEP',
+      'Escola',
+      'Municipio',
+      'GRE',
+      'Critica',
+      'Com projeto',
+      'Vistoriada',
+      '3 status',
+      'Servicos emergenciais',
+      'Detalhamento do projeto',
+      'Endereco',
+      'Latitude',
+      'Longitude',
+      'Coordenada valida',
+      'Plotada no mapa',
+    ]
+    const rows = exportSchools.map((school) => {
+      const status = schoolStatuses[school.inep] ?? EMPTY_STATUS
+      return [
+        school.inep,
+        school.name,
+        school.municipality,
+        school.gre,
+        formatYesNo(status.critical),
+        formatYesNo(status.hasProject),
+        formatYesNo(status.inspected),
+        formatYesNo(status.critical && status.hasProject && status.inspected),
+        status.criticalServices.join('; '),
+        status.projectDetail,
+        school.address,
+        school.latitude,
+        school.longitude,
+        formatYesNo(mappedSchoolIneps.has(school.inep)),
+        formatYesNo(Boolean(validIneps?.has(school.inep))),
+      ]
+    })
+    const body = [headers, ...rows]
+      .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell ?? ''))}</td>`).join('')}</tr>`)
+      .join('')
+    const html = `<!doctype html><html><head><meta charset="utf-8" /></head><body><table>${body}</table></body></html>`
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    link.href = url
+    link.download = `escolas-filtradas-${date}.xls`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
 
   const outsidePeCount = validIneps ? mappedSchools.length - validIneps.size : 0
 
@@ -513,6 +578,9 @@ export function SchoolMap({ schoolStatuses, selectedSchool, selectedMunicipality
             <span>Filtrar município</span>
             <input value={municipalityFilter} onChange={(event) => setMunicipalityFilter(event.target.value)} placeholder="Digite o município" type="search" />
           </label>
+          <button className="exportButton" disabled={exportSchools.length === 0} type="button" onClick={exportFilteredSchools}>
+            Exportar XLS <span>{exportSchools.length}</span>
+          </button>
           <strong>{filteredMunicipalityRows.length}</strong>
         </div>
         <div className="municipalityTableWrap">

@@ -656,6 +656,32 @@ textarea:focus {
   min-height: 40px;
 }
 
+.exportButton {
+  align-items: center;
+  background: var(--primary);
+  border: 1px solid var(--primary-dark);
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 8px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.exportButton span {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-size: 11px;
+  min-width: 30px;
+  padding: 2px 6px;
+}
+
 .municipalityTableWrap {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1183,6 +1209,10 @@ footer {
 
   .municipalitySearch input {
     max-width: none;
+  }
+
+  .exportButton {
+    width: 100%;
   }
 
   .sectionActions,
